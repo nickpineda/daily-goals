@@ -2,37 +2,62 @@
 
 export const dynamic = 'force-dynamic';
 
-export const dynamic = 'force-dynamic';
-
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
-function getCalendarDays(year: number, month: number) {
+type DayCell = {
+  date: Date;
+  key: string;
+  completed: number;
+};
+
+function buildCalendar(year: number, month: number) {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
 
-  const days: (Date | null)[] = [];
+  const cells: (DayCell | null)[] = [];
 
-  // Empty cells before first day
+  // Padding before first weekday
   for (let i = 0; i < firstDay.getDay(); i++) {
-    days.push(null);
+    cells.push(null);
   }
 
   // Actual days
   for (let d = 1; d <= lastDay.getDate(); d++) {
-    days.push(new Date(year, month, d));
+    const date = new Date(year, month, d);
+    const key = date.toISOString().split('T')[0];
+    cells.push({ date, key, completed: 0 });
   }
 
-  return days;
+  return cells;
 }
 
 export default function Month() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
+  const [cells, setCells] = useState<(DayCell | null)[]>([]);
 
-  const days = getCalendarDays(year, month);
+  useEffect(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
 
-  const monthLabel = now.toLocaleDateString(undefined, {
+    const calendar = buildCalendar(year, month).map(cell => {
+      if (!cell) return null;
+
+      const stored =
+        typeof window !== 'undefined'
+          ? JSON.parse(localStorage.getItem(`daily-${cell.key}`) || '[]')
+          : [];
+
+      return {
+        ...cell,
+        completed: stored.length,
+      };
+    });
+
+    setCells(calendar);
+  }, []);
+
+  const monthLabel = new Date().toLocaleDateString(undefined, {
     month: 'long',
     year: 'numeric',
   });
@@ -46,7 +71,7 @@ export default function Month() {
         <h1 className="text-3xl font-semibold">{monthLabel}</h1>
       </div>
 
-      {/* Weekday header row */}
+      {/* Weekday headers */}
       <div className="grid grid-cols-7 text-xs text-neutral-500 mb-2">
         {weekdays.map(d => (
           <div key={d} className="text-center">
@@ -57,33 +82,26 @@ export default function Month() {
 
       {/* Calendar grid */}
       <div className="grid grid-cols-7 gap-1">
-        {days.map((date, idx) => {
-          if (!date) {
-            return <div key={idx} />;
-          }
-
-          const key = date.toISOString().split('T')[0];
-          const completed = JSON.parse(
-            localStorage.getItem(`daily-${key}`) || '[]'
-          );
-
-          return (
+        {cells.map((cell, i) =>
+          cell ? (
             <Link
-              key={key}
-              href={`/?date=${key}`}
+              key={cell.key}
+              href={`/?date=${cell.key}`}
               className="border border-neutral-700 p-2 hover:bg-neutral-800 transition"
             >
               <div className="text-xs text-neutral-400">
-                {date.getDate()}
+                {cell.date.getDate()}
               </div>
-              {completed.length > 0 && (
+              {cell.completed > 0 && (
                 <div className="text-[10px] text-neutral-500 mt-1">
-                  {completed.length}
+                  {cell.completed}
                 </div>
               )}
             </Link>
-          );
-        })}
+          ) : (
+            <div key={`empty-${i}`} />
+          )
+        )}
       </div>
 
       {/* Footer nav */}
