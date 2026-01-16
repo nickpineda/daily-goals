@@ -1,5 +1,9 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
+export const dynamic = 'force-dynamic';
+
 import Link from 'next/link';
 
 function getCalendarDays(year: number, month: number) {

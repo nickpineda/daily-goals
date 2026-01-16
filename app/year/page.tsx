@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import Link from 'next/link';
 
 export default function Year() {
@@ -30,10 +32,7 @@ export default function Year() {
           );
         })}
       </div>
-      <div className="grid grid-cols-2 gap-4">
-  <div className="bg-red-500">A</div>
-  <div className="bg-blue-500">B</div>
-</div>
+      
 
       {/* Footer nav */}
       <div className="mt-16 text-sm text-neutral-500">
