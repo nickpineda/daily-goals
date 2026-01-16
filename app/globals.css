@@ -23,3 +23,6 @@ body {
   color: var(--text);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
+body {
+  outline: 4px solid red !important;
+}
