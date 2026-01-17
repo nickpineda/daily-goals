@@ -3,17 +3,20 @@
 export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
+import { getDayRecord, getDateKey } from '../../lib/dayStore';
+/* ---------- Helpers ---------- */
 
 function getLast7Days() {
-  const days = [];
+  const days: { date: Date; key: string; label: string }[] = [];
 
   for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
+    const date = new Date();
+    date.setDate(date.getDate() - i);
 
     days.push({
-      key: d.toISOString().split('T')[0],
-      label: d.toLocaleDateString(undefined, {
+      date,
+      key: getDateKey(date),
+      label: date.toLocaleDateString(undefined, {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
@@ -24,12 +27,9 @@ function getLast7Days() {
   return days;
 }
 
-export default function Week() {
-  const goals =
-    typeof window !== 'undefined'
-      ? JSON.parse(localStorage.getItem('goals') || '[]')
-      : [];
+/* ---------- Component ---------- */
 
+export default function Week() {
   const days = getLast7Days();
 
   return (
@@ -37,51 +37,47 @@ export default function Week() {
       {/* Header */}
       <div className="mb-10">
         <h1 className="text-3xl font-semibold">Week</h1>
-        <p className="text-sm text-neutral-500 mt-1">Last 7 days</p>
+        <p className="text-sm text-neutral-500 mt-1">
+          Last 7 days
+        </p>
       </div>
 
       {/* Days */}
       <div className="space-y-3">
         {days.map(day => {
-          const completed = JSON.parse(
-            localStorage.getItem(`daily-${day.key}`) || '[]'
-          );
+          const record = getDayRecord(day.key);
+          const count = record.completedGoals.length;
 
           return (
-            <div
+            <Link
               key={day.key}
-              className="flex justify-between border-b border-neutral-700 py-2 text-sm"
+              href={`/?date=${day.key}`}
+              className="flex justify-between items-center border-b border-neutral-700 py-2 text-sm hover:text-neutral-300"
             >
               <span>{day.label}</span>
               <span className="text-neutral-500">
-                {completed.length} / {goals.length}
+                {count}
               </span>
-            </div>
+            </Link>
           );
         })}
       </div>
 
-      {/* Back link */}
-      <div className="mt-10">
-        <Link
-          href="/"
-          className="text-sm text-neutral-500 hover:text-neutral-300"
-        >
-          {/* Footer nav */}
-<div className="mt-16 text-sm text-neutral-500">
-  <a
-    href="/"
-    className="hover:text-neutral-300"
-  >
-    Daily
-  </a>
-  <span className="mx-2">·</span>
-  <span>Week</span>
-</div>
-<div className="grid grid-cols-2 gap-4 mt-8">
-
-</div>
-        </Link>
+      {/* Footer nav */}
+      <div className="mt-16 text-sm text-neutral-500">
+        <a href="/" className="hover:text-neutral-300">
+          Daily
+        </a>
+        <span className="mx-2">·</span>
+        <span>Week</span>
+        <span className="mx-2">·</span>
+        <a href="/month" className="hover:text-neutral-300">
+          Month
+        </a>
+        <span className="mx-2">·</span>
+        <a href="/year" className="hover:text-neutral-300">
+          Year
+        </a>
       </div>
     </main>
   );
