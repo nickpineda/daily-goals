@@ -2,20 +2,20 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import {
+  getDayRecord,
+  getDateKey,
+} from '../../lib/dayStore';
 
-type DayCell = {
-  date: Date;
-  key: string;
-  completed: number;
-};
+/* ---------- Helpers ---------- */
 
 function buildCalendar(year: number, month: number) {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
 
-  const cells: (DayCell | null)[] = [];
+  const cells: (Date | null)[] = [];
 
   // Padding before first weekday
   for (let i = 0; i < firstDay.getDay(); i++) {
@@ -24,43 +24,32 @@ function buildCalendar(year: number, month: number) {
 
   // Actual days
   for (let d = 1; d <= lastDay.getDate(); d++) {
-    const date = new Date(year, month, d);
-    const key = date.toISOString().split('T')[0];
-    cells.push({ date, key, completed: 0 });
+    cells.push(new Date(year, month, d));
   }
 
   return cells;
 }
 
+/* ---------- Component ---------- */
+
 export default function Month() {
-  const [cells, setCells] = useState<(DayCell | null)[]>([]);
+  const searchParams = useSearchParams();
+  const monthParam = searchParams.get('month');
 
-  useEffect(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
+  const now = new Date();
+  const year = now.getFullYear();
 
-    const calendar = buildCalendar(year, month).map(cell => {
-      if (!cell) return null;
+  // ✅ FIX: respect month passed from Year view
+  const month = monthParam
+    ? Number(monthParam)
+    : now.getMonth();
 
-      const stored =
-        typeof window !== 'undefined'
-          ? JSON.parse(localStorage.getItem(`daily-${cell.key}`) || '[]')
-          : [];
+  const cells = buildCalendar(year, month);
 
-      return {
-        ...cell,
-        completed: stored.length,
-      };
-    });
-
-    setCells(calendar);
-  }, []);
-
-  const monthLabel = new Date().toLocaleDateString(undefined, {
-    month: 'long',
-    year: 'numeric',
-  });
+  const monthLabel = new Date(year, month, 1).toLocaleDateString(
+    undefined,
+    { month: 'long', year: 'numeric' }
+  );
 
   const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -82,37 +71,46 @@ export default function Month() {
 
       {/* Calendar grid */}
       <div className="grid grid-cols-7 gap-1">
-        {cells.map((cell, i) =>
-          cell ? (
+        {cells.map((date, i) => {
+          if (!date) return <div key={`empty-${i}`} />;
+
+          const key = getDateKey(date);
+          const record = getDayRecord(key);
+          const hasActivity =
+            record.completedGoals.length > 0 ||
+            record.notes.trim().length > 0;
+
+          return (
             <Link
-              key={cell.key}
-              href={`/?date=${cell.key}`}
-              className="border border-neutral-700 p-2 hover:bg-neutral-800 transition"
+              key={key}
+              href={`/?date=${key}`}
+              className={`border border-neutral-700 p-2 transition hover:bg-neutral-800 ${
+                hasActivity ? 'bg-neutral-900' : ''
+              }`}
             >
               <div className="text-xs text-neutral-400">
-                {cell.date.getDate()}
+                {date.getDate()}
               </div>
-              {cell.completed > 0 && (
-                <div className="text-[10px] text-neutral-500 mt-1">
-                  {cell.completed}
-                </div>
-              )}
             </Link>
-          ) : (
-            <div key={`empty-${i}`} />
-          )
-        )}
+          );
+        })}
       </div>
 
       {/* Footer nav */}
       <div className="mt-16 text-sm text-neutral-500">
-        <a href="/" className="hover:text-neutral-300">Daily</a>
+        <a href="/" className="hover:text-neutral-300">
+          Daily
+        </a>
         <span className="mx-2">·</span>
-        <a href="/week" className="hover:text-neutral-300">Week</a>
+        <a href="/week" className="hover:text-neutral-300">
+          Week
+        </a>
         <span className="mx-2">·</span>
         <span>Month</span>
         <span className="mx-2">·</span>
-        <a href="/year" className="hover:text-neutral-300">Year</a>
+        <a href="/year" className="hover:text-neutral-300">
+          Year
+        </a>
       </div>
     </main>
   );
