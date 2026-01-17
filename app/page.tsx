@@ -5,8 +5,14 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ThemeToggle from '../components/ThemeToggle';
+import {
+  getDayRecord,
+  setDayRecord,
+  getDateKey,
+  parseDateKey,
+} from '../lib/dayStore';
 
-/* ---------- Storage keys ---------- */
+/* ---------- Constants ---------- */
 
 const GOALS_KEY = 'goals';
 
@@ -16,9 +22,12 @@ export default function Home() {
   const searchParams = useSearchParams();
   const dateParam = searchParams.get('date');
 
-  // Determine active date (today or from URL)
-  const activeDate = dateParam ? new Date(dateParam) : new Date();
-  const dateKey = activeDate.toISOString().split('T')[0];
+  // ✅ FIXED: always parse dates in LOCAL time
+  const activeDate = dateParam
+    ? parseDateKey(dateParam)
+    : new Date();
+
+  const dateKey = getDateKey(activeDate);
 
   const todayLabel = activeDate.toLocaleDateString(undefined, {
     weekday: 'long',
@@ -26,42 +35,47 @@ export default function Home() {
     day: 'numeric',
   });
 
-  const COMPLETED_KEY = `daily-${dateKey}`;
-  const NOTES_KEY = `notes-${dateKey}`;
-
   const [goals, setGoals] = useState<string[]>([]);
   const [completed, setCompleted] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const [newGoal, setNewGoal] = useState('');
 
-  /* ----- Load saved data for active date ----- */
+  /* ---------- Load global goals ---------- */
+
   useEffect(() => {
     const savedGoals = localStorage.getItem(GOALS_KEY);
-    const savedCompleted = localStorage.getItem(COMPLETED_KEY);
-    const savedNotes = localStorage.getItem(NOTES_KEY);
-
     setGoals(
-      savedGoals ? JSON.parse(savedGoals) : ['Exercise', 'Write', 'Learn']
+      savedGoals
+        ? JSON.parse(savedGoals)
+        : ['Exercise', 'Write', 'Learn']
     );
+  }, []);
 
-    setCompleted(savedCompleted ? JSON.parse(savedCompleted) : []);
-    setNotes(savedNotes || '');
-  }, [COMPLETED_KEY, NOTES_KEY]);
+  /* ---------- Persist global goals ---------- */
 
-  /* ----- Persist data ----- */
   useEffect(() => {
     localStorage.setItem(GOALS_KEY, JSON.stringify(goals));
   }, [goals]);
 
-  useEffect(() => {
-    localStorage.setItem(COMPLETED_KEY, JSON.stringify(completed));
-  }, [completed, COMPLETED_KEY]);
+  /* ---------- Load day record (SOURCE OF TRUTH) ---------- */
 
   useEffect(() => {
-    localStorage.setItem(NOTES_KEY, notes);
-  }, [notes, NOTES_KEY]);
+    const record = getDayRecord(dateKey);
+    setCompleted(record.completedGoals);
+    setNotes(record.notes);
+  }, [dateKey]);
 
-  /* ----- Actions ----- */
+  /* ---------- Persist day record ---------- */
+
+  useEffect(() => {
+    setDayRecord(dateKey, {
+      completedGoals: completed,
+      notes,
+    });
+  }, [completed, notes, dateKey]);
+
+  /* ---------- Actions ---------- */
+
   const toggleGoal = (goal: string) => {
     setCompleted(prev =>
       prev.includes(goal)
@@ -89,7 +103,9 @@ export default function Home() {
       <div className="flex justify-between items-baseline mb-10">
         <div>
           <h1 className="text-3xl font-semibold">Daily</h1>
-          <p className="text-sm text-neutral-500 mt-1">{todayLabel}</p>
+          <p className="text-sm text-neutral-500 mt-1">
+            {todayLabel}
+          </p>
         </div>
         <ThemeToggle />
       </div>
@@ -154,11 +170,17 @@ export default function Home() {
       <div className="mt-16 text-sm text-neutral-500">
         <span>Daily</span>
         <span className="mx-2">·</span>
-        <a href="/week" className="hover:text-neutral-300">Week</a>
+        <a href="/week" className="hover:text-neutral-300">
+          Week
+        </a>
         <span className="mx-2">·</span>
-        <a href="/month" className="hover:text-neutral-300">Month</a>
+        <a href="/month" className="hover:text-neutral-300">
+          Month
+        </a>
         <span className="mx-2">·</span>
-        <a href="/year" className="hover:text-neutral-300">Year</a>
+        <a href="/year" className="hover:text-neutral-300">
+          Year
+        </a>
       </div>
     </main>
   );
